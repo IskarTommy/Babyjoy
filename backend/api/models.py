@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password
+from django.core.validators import RegexValidator
 
 
 class User(models.Model):
@@ -27,7 +28,9 @@ class Category(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    sku = models.CharField(max_length=100, unique=True)
+    # SKU: normalized to uppercase, validated to a safe charset (A-Z,0-9,_,-)
+    sku_validator = RegexValidator(r'^[A-Z0-9_-]+$', 'Uppercase letters, numbers, -, _ only')
+    sku = models.CharField(max_length=100, unique=True, validators=[sku_validator])
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -39,6 +42,12 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        # Normalize SKU: strip and uppercase (keeps DB-stored SKUs consistent)
+        if self.sku:
+            self.sku = self.sku.strip().upper()
+        super().save(*args, **kwargs)
     
 
 class Sale(models.Model):

@@ -12,6 +12,20 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
 
+    def validate(self, data):
+        # Ensure business rule: price should be greater than or equal to cost (if cost provided)
+        price = data.get('price')
+        cost = data.get('cost')
+        # If cost is provided and both are numbers, enforce price >= cost
+        if cost is not None and price is not None:
+            try:
+                if price < cost:
+                    raise serializers.ValidationError({'non_field_errors': ['price must be greater than or equal to cost']})
+            except TypeError:
+                # Let DRF field validators handle type issues
+                pass
+        return data
+
 
 class SaleItemSerializer(serializers.ModelSerializer):
     class Meta:
