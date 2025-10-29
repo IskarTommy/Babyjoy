@@ -18,7 +18,10 @@ async function fetchProducts(): Promise<Product[]> {
 }
 
 export default function Products() {
-  const { data, isLoading, error } = useQuery<Product[], Error>(["products"], fetchProducts);
+  const { data, isLoading, error } = useQuery<Product[], Error>({
+    queryKey: ["products"],
+    queryFn: fetchProducts,
+  });
 
   return (
     <div className="space-y-6">
@@ -51,7 +54,7 @@ export default function Products() {
               </thead>
               <tbody>
                 {data && data.length ? (
-                  data.map((p) => (
+                  (data as Product[]).map((p) => (
                     <tr key={p.id} className="border-t">
                       <td className="px-3 py-2">{p.name}</td>
                       <td className="px-3 py-2">{p.sku ?? "—"}</td>
