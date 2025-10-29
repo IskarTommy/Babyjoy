@@ -15,7 +15,8 @@ import os
 from dotenv import load_dotenv
 
 
-load_dotenv(Path(__file__).resolve().parent.parent / ' .env')
+# Load environment variables from the project's .env file (removed stray space)
+load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -137,3 +138,7 @@ CORS_ALLOWED_ORIGINS = [os.getenv('FRONTEND_ORIGIN', 'http://localhost:5173')]
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
 }
+
+# Media files (for uploaded product images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

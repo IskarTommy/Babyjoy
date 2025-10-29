@@ -1,5 +1,5 @@
 import { LayoutDashboard, Package, ShoppingCart, BarChart3, Users, Settings } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
+  const navigate = useNavigate();
   return (
     <aside className="fixed left-0 top-0 z-50 h-screen w-64 border-r bg-sidebar">
       <div className="flex h-16 items-center border-b px-6">
@@ -23,6 +24,7 @@ export const Sidebar = () => {
           <NavLink
             key={item.to}
             to={item.to}
+            end={item.to === '/'}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
