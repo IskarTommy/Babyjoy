@@ -39,9 +39,26 @@ class ProductListCreateView(generics.ListCreateAPIView):
         return super().post(request, *args, **kwargs)
 
 
-class ProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('view_products')
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @require_permission('manage_products')
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+    
+    @require_permission('manage_products')
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+    
+    @require_permission('manage_products')
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
 
 
 class SaleListCreateView(generics.ListCreateAPIView):

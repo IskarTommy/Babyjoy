@@ -21,7 +21,7 @@ const getAuthHeaders = (): HeadersInit => {
   return headers;
 };
 
-// Generic API call function
+// Generic API call function with timeout and better error handling
 export const apiCall = async (
   endpoint: string, 
   options: RequestInit = {}
@@ -29,25 +29,52 @@ export const apiCall = async (
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = getAuthHeaders();
   
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  
   const config: RequestInit = {
     ...options,
     headers: {
       ...headers,
       ...options.headers,
     },
+    signal: controller.signal,
   };
   
-  const response = await fetch(url, config);
-  
-  // Handle 401 Unauthorized - redirect to login
-  if (response.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
+  try {
+    const response = await fetch(url, config);
+    clearTimeout(timeoutId);
+    
+    // Handle 401 Unauthorized - redirect to login
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
+    
+    // Handle other HTTP errors
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - please check your connection');
+      }
+      if (error.message.includes('fetch')) {
+        throw new Error('Network error - please check your connection and try again');
+      }
+    }
+    
+    throw error;
   }
-  
-  return response;
 };
 
 // Specific API functions
@@ -86,7 +113,6 @@ export const updateProduct = async (id: number, productData: any) => {
     method: 'PUT',
     body: JSON.stringify(productData),
   });
-  if (!response.ok) throw new Error('Failed to update product');
   return response.json();
 };
 

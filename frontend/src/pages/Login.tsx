@@ -70,6 +70,21 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Development helper */}
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded">
+                <p className="text-sm mb-2">Test Credentials:</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("iskartommy117@gmail.com");
+                    setPassword("admin123");
+                  }}
+                  className="text-sm underline hover:no-underline"
+                >
+                  Click to fill test credentials
+                </button>
+              </div>
+
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address

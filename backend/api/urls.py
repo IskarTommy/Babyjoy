@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     CategoryListCreateView, ProductListCreateView, SaleListCreateView, 
-    ProductImageUploadView, ProductRetrieveDestroyView, LoginView, LogoutView, 
+    ProductImageUploadView, ProductRetrieveUpdateDestroyView, LoginView, LogoutView, 
     UserProfileView, AnalyticsView, UsersListView, UserPermissionsView, UpdateUserRoleView
 )
 
@@ -20,7 +20,7 @@ urlpatterns = [
     # Existing endpoints
     path('categories/', CategoryListCreateView.as_view(), name='categories'),
     path('products/', ProductListCreateView.as_view(), name='products'),
-    path('products/<int:pk>/', ProductRetrieveDestroyView.as_view(), name='product-detail'),
+    path('products/<int:pk>/', ProductRetrieveUpdateDestroyView.as_view(), name='product-detail'),
     path('products/upload-image/', ProductImageUploadView.as_view(), name='product-upload-image'),
     path('sales/', SaleListCreateView.as_view(), name='sales'),
 ]
