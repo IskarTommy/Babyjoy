@@ -1,6 +1,7 @@
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart } from "lucide-react";
 
 async function fetchAnalytics() {
   const [salesRes, productsRes] = await Promise.all([
