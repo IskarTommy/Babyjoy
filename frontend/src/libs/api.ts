@@ -108,3 +108,18 @@ export const fetchUsers = async () => {
   if (!response.ok) throw new Error('Failed to fetch users');
   return response.json();
 };
+
+export const fetchUserPermissions = async () => {
+  const response = await apiCall('/users/permissions/');
+  if (!response.ok) throw new Error('Failed to fetch user permissions');
+  return response.json();
+};
+
+export const updateUserRole = async (userId: number, role: string) => {
+  const response = await apiCall('/users/update-role/', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+  if (!response.ok) throw new Error('Failed to update user role');
+  return response.json();
+};

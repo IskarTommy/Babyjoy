@@ -5,6 +5,7 @@ import { formatCurrency } from "@/libs/utils";
 import { fetchSales } from "@/libs/api";
 import { Calendar, Download, Eye, Filter, Search, Printer } from "lucide-react";
 import { useState } from "react";
+import { RoleBasedBreadcrumb } from "@/components/RoleBasedNavigation";
 
 export default function Sales() {
   const { data, isLoading, error } = useQuery<any[], Error>({ queryKey: ['sales'], queryFn: fetchSales });
@@ -231,6 +232,7 @@ export default function Sales() {
 
   return (
     <div className="space-y-6">
+      <RoleBasedBreadcrumb currentPage="Sales" />
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">Sales Management</h1>

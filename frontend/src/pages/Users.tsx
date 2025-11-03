@@ -1,28 +1,70 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, User, Shield, Clock, Mail, DollarSign, ShoppingCart } from "lucide-react";
-import { fetchUsers } from "@/libs/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, User, Shield, Clock, Mail, DollarSign, ShoppingCart, Edit, Save, X } from "lucide-react";
+import { fetchUsers, updateUserRole } from "@/libs/api";
 import { formatCurrency } from "@/libs/utils";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 export default function Users() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [editingRole, setEditingRole] = useState<number | null>(null);
+  const [newRole, setNewRole] = useState<string>('');
+  
+  const queryClient = useQueryClient();
   const { data: users, isLoading, error } = useQuery<any[], Error>({ 
     queryKey: ['users'], 
     queryFn: fetchUsers 
   });
 
-  const getRoleColor = (user: any) => {
-    if (user.is_superuser) return "bg-red-100 text-red-800";
-    if (user.is_staff) return "bg-blue-100 text-blue-800";
-    return "bg-gray-100 text-gray-800";
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: string }) => 
+      updateUserRole(userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditingRole(null);
+      setNewRole('');
+    },
+    onError: (error: any) => {
+      console.error('Error updating role:', error);
+      alert('Failed to update user role');
+    }
+  });
+
+  const roleOptions = [
+    { value: 'super_admin', label: 'Super Administrator', color: 'bg-red-100 text-red-800' },
+    { value: 'admin', label: 'Administrator', color: 'bg-purple-100 text-purple-800' },
+    { value: 'manager', label: 'Store Manager', color: 'bg-blue-100 text-blue-800' },
+    { value: 'cashier', label: 'Cashier', color: 'bg-green-100 text-green-800' },
+    { value: 'staff', label: 'Staff Member', color: 'bg-gray-100 text-gray-800' },
+    { value: 'viewer', label: 'Viewer Only', color: 'bg-yellow-100 text-yellow-800' },
+  ];
+
+  const getRoleColor = (role: string) => {
+    const roleOption = roleOptions.find(option => option.value === role);
+    return roleOption?.color || "bg-gray-100 text-gray-800";
   };
 
-  const getRoleLabel = (user: any) => {
-    if (user.is_superuser) return "Super Admin";
-    if (user.is_staff) return "Staff";
-    return "User";
+  const getRoleLabel = (role: string) => {
+    const roleOption = roleOptions.find(option => option.value === role);
+    return roleOption?.label || role;
+  };
+
+  const handleRoleEdit = (userId: number, currentRole: string) => {
+    setEditingRole(userId);
+    setNewRole(currentRole);
+  };
+
+  const handleRoleSave = (userId: number) => {
+    if (newRole) {
+      updateRoleMutation.mutate({ userId, role: newRole });
+    }
+  };
+
+  const handleRoleCancel = () => {
+    setEditingRole(null);
+    setNewRole('');
   };
 
   const getStatusColor = (user: any) => {
@@ -141,9 +183,50 @@ export default function Users() {
                             ? `${user.first_name} ${user.last_name}` 
                             : user.username}
                         </h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user)}`}>
-                          {getRoleLabel(user)}
-                        </span>
+                        
+                        {editingRole === user.id ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={newRole}
+                              onChange={(e) => setNewRole(e.target.value)}
+                              className="px-2 py-1 text-xs border rounded"
+                            >
+                              {roleOptions.map(option => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleRoleSave(user.id)}
+                              className="p-1 text-green-600 hover:text-green-700"
+                              disabled={updateRoleMutation.isPending}
+                            >
+                              <Save className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={handleRoleCancel}
+                              className="p-1 text-red-600 hover:text-red-700"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                              {getRoleLabel(user.role)}
+                            </span>
+                            <PermissionGuard permission="manage_users">
+                              <button
+                                onClick={() => handleRoleEdit(user.id, user.role)}
+                                className="p-1 text-gray-400 hover:text-gray-600"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </button>
+                            </PermissionGuard>
+                          </div>
+                        )}
+                        
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user)}`}>
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
@@ -213,8 +296,8 @@ export default function Users() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Role:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(selectedUser)}`}>
-                        {getRoleLabel(selectedUser)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(selectedUser.role)}`}>
+                        {getRoleLabel(selectedUser.role)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -265,20 +348,22 @@ export default function Users() {
                 <div>
                   <h4 className="font-semibold mb-2">Permissions</h4>
                   <div className="space-y-2">
-                    {selectedUser.is_superuser ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <Shield className="h-3 w-3 mr-1" />
-                        All Permissions
-                      </span>
-                    ) : selectedUser.is_staff ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        <Shield className="h-3 w-3 mr-1" />
-                        Staff Access
-                      </span>
+                    {selectedUser.permissions && selectedUser.permissions.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedUser.permissions.map((permission: string) => (
+                          <span 
+                            key={permission}
+                            className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700"
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
+                            {permission.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                          </span>
+                        ))}
+                      </div>
                     ) : (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         <User className="h-3 w-3 mr-1" />
-                        Basic Access
+                        No Permissions
                       </span>
                     )}
                   </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/libs/utils";
 import { fetchProducts as apiFetchProducts, createSale } from "@/libs/api";
+import { RoleBasedBreadcrumb } from "@/components/RoleBasedNavigation";
 
 type Product = { id: number; name: string; price: number; stock?: number };
 
@@ -127,6 +128,7 @@ export default function POS() {
 
   return (
     <div className="space-y-6">
+      <RoleBasedBreadcrumb currentPage="POS" />
       <div>
         <h1 className="text-3xl font-bold">Point of Sale</h1>
         <p className="text-muted-foreground">Quick checkout for in-store customers</p>

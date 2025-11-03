@@ -7,6 +7,9 @@ interface User {
   last_name: string;
   is_staff: boolean;
   is_superuser: boolean;
+  role?: string;
+  role_display?: string;
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -16,6 +19,8 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
+  hasPermission: (permission: string) => boolean;
+  refreshPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,6 +99,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('user');
   };
 
+  const hasPermission = (permission: string): boolean => {
+    if (!user) return false;
+    if (user.is_superuser) return true;
+    return user.permissions?.includes(permission) || false;
+  };
+
+  const refreshPermissions = async (): Promise<void> => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch('/api/users/permissions/', {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const permissionData = await response.json();
+        const updatedUser = {
+          ...user!,
+          role: permissionData.role,
+          role_display: permissionData.role_display,
+          permissions: permissionData.permissions,
+        };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Error refreshing permissions:', error);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -101,6 +139,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isLoading,
     isAuthenticated: !!user && !!token,
+    hasPermission,
+    refreshPermissions,
   };
 
   return (

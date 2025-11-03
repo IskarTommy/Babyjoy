@@ -1,16 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users, Calendar } from "lucide-react";
+import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users, Calendar, BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/libs/utils";
 import { fetchProducts, fetchSales, fetchAnalytics } from "@/libs/api";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { useAuth } from "@/contexts/AuthContext";
+import { PermissionGuard } from "@/components/PermissionGuard";
+import { RoleHelpCard } from "@/components/RoleHelp";
 
 export default function Dashboard() {
+  const { user, hasPermission } = useAuth();
   const productsQuery = useQuery<any[], Error>({ queryKey: ["products"], queryFn: fetchProducts });
   const salesQuery = useQuery<any[], Error>({ queryKey: ["sales"], queryFn: fetchSales });
-  const analyticsQuery = useQuery<any, Error>({ queryKey: ["analytics"], queryFn: fetchAnalytics });
+  const analyticsQuery = useQuery<any, Error>({ 
+    queryKey: ["analytics"], 
+    queryFn: fetchAnalytics,
+    enabled: hasPermission('view_analytics')
+  });
 
   const products = productsQuery.data ?? [];
   const sales = salesQuery.data ?? [];
@@ -75,19 +83,80 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here's your store overview.</p>
-        <div className="mt-4 flex gap-3">
-          <Link to="/pos">
-            <Button>Go to POS</Button>
-          </Link>
-          <Link to="/products">
-            <Button variant="outline">Manage Products</Button>
-          </Link>
-          <Link to="/sales">
-            <Button variant="outline">View Sales</Button>
-          </Link>
+        <p className="text-muted-foreground">
+          Welcome back, {user?.first_name || user?.email?.split('@')[0]}! 
+          {user?.role_display && ` You're logged in as ${user.role_display}.`}
+        </p>
+        
+        {/* Role-specific Quick Actions */}
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">Quick Actions</h3>
+          <div className="flex flex-wrap gap-3">
+            <PermissionGuard permission="pos_access">
+              <Link to="/pos">
+                <Button className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Start Sale
+                </Button>
+              </Link>
+            </PermissionGuard>
+            
+            <PermissionGuard permission="view_products">
+              <Link to="/products">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  {hasPermission('manage_products') ? 'Manage Products' : 'View Products'}
+                </Button>
+              </Link>
+            </PermissionGuard>
+            
+            <PermissionGuard permission="view_sales">
+              <Link to="/sales">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  View Sales
+                </Button>
+              </Link>
+            </PermissionGuard>
+            
+            <PermissionGuard permission="view_analytics">
+              <Link to="/analytics">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </Button>
+              </Link>
+            </PermissionGuard>
+            
+            <PermissionGuard permission="manage_users">
+              <Link to="/users">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Manage Users
+                </Button>
+              </Link>
+            </PermissionGuard>
+          </div>
+        </div>
+        
+        {/* Role-specific Information */}
+        <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+          <h4 className="font-medium mb-2">Your Access Level</h4>
+          <div className="flex flex-wrap gap-2">
+            {user?.permissions?.map((permission) => (
+              <span 
+                key={permission}
+                className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
+              >
+                {permission.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Role-specific help for non-admin users */}
+      <RoleHelpCard />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
@@ -163,25 +232,35 @@ export default function Dashboard() {
             <CardTitle>Payment Methods</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={paymentData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {paymentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: any) => formatCurrency(value)} />
-              </PieChart>
-            </ResponsiveContainer>
+            {paymentData && paymentData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={paymentData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {paymentData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                <div className="text-center">
+                  <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No payment data available</p>
+                  <p className="text-sm">Complete some sales to see payment methods</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -191,20 +270,30 @@ export default function Dashboard() {
           <CardTitle>Top Products by Sales</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={topProducts}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip 
-                formatter={(value: any, name: string) => [
-                  name === 'revenue' ? formatCurrency(value) : value,
-                  name === 'revenue' ? 'Revenue' : 'Units Sold'
-                ]}
-              />
-              <Bar dataKey="sales" fill="#8884d8" name="sales" />
-            </BarChart>
-          </ResponsiveContainer>
+          {topProducts && topProducts.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={topProducts}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: any, name: string) => [
+                    name === 'revenue' ? formatCurrency(value) : value,
+                    name === 'revenue' ? 'Revenue' : 'Units Sold'
+                  ]}
+                />
+                <Bar dataKey="sales" fill="#8884d8" name="sales" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+              <div className="text-center">
+                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No sales data available</p>
+                <p className="text-sm">Make some sales to see top products</p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     CategoryListCreateView, ProductListCreateView, SaleListCreateView, 
     ProductImageUploadView, ProductRetrieveDestroyView, LoginView, LogoutView, 
-    UserProfileView, AnalyticsView, UsersListView
+    UserProfileView, AnalyticsView, UsersListView, UserPermissionsView, UpdateUserRoleView
 )
 
 urlpatterns = [
@@ -14,6 +14,8 @@ urlpatterns = [
     # Analytics and Users
     path('analytics/', AnalyticsView.as_view(), name='analytics'),
     path('users/', UsersListView.as_view(), name='users'),
+    path('users/permissions/', UserPermissionsView.as_view(), name='user-permissions'),
+    path('users/update-role/', UpdateUserRoleView.as_view(), name='update-user-role'),
     
     # Existing endpoints
     path('categories/', CategoryListCreateView.as_view(), name='categories'),

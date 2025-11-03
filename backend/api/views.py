@@ -15,8 +15,9 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 import os, uuid
 
-from .models import Category, Product, Sale, SaleItem
+from .models import Category, Product, Sale, SaleItem, UserProfile
 from .serializers import CategorySerializer, ProductSerializer, SaleSerializer
+from .permissions import require_permission, get_user_permissions
 
 
 class CategoryListCreateView(generics.ListCreateAPIView):
@@ -27,6 +28,15 @@ class CategoryListCreateView(generics.ListCreateAPIView):
 class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all().order_by('id')
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('view_products')
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @require_permission('manage_products')
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class ProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
@@ -37,6 +47,15 @@ class ProductRetrieveDestroyView(generics.RetrieveDestroyAPIView):
 class SaleListCreateView(generics.ListCreateAPIView):
     queryset = Sale.objects.all().order_by('-created_at')
     serializer_class = SaleSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('view_sales')
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @require_permission('pos_access')
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class ProductImageUploadView(APIView):
@@ -130,6 +149,7 @@ class UserProfileView(APIView):
 class AnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @require_permission('view_analytics')
     def get(self, request):
         # Get date range (last 7 days by default)
         end_date = timezone.now().date()
@@ -212,21 +232,35 @@ class AnalyticsView(APIView):
 class UsersListView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @require_permission('manage_users')
     def get(self, request):
-        # Only allow staff/superusers to view user list
-        if not request.user.is_staff:
-            return Response({
-                'message': 'Permission denied'
-            }, status=status.HTTP_403_FORBIDDEN)
         
         users = User.objects.all().order_by('-date_joined')
         users_data = []
         
         for user in users:
             # Get user's sales count and total
-            user_sales = Sale.objects.filter(created_by=user)
-            sales_count = user_sales.count()
-            sales_total = user_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+            try:
+                user_sales = Sale.objects.filter(created_by=user)
+                sales_count = user_sales.count()
+                sales_total = user_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+            except Exception as e:
+                print(f"Error getting sales for user {user.username}: {e}")
+                sales_count = 0
+                sales_total = 0
+            
+            # Get user profile and role
+            try:
+                profile = user.profile
+                role = profile.role
+                role_display = profile.role_display
+                permissions = profile.permissions
+            except UserProfile.DoesNotExist:
+                # Create default profile for users without one
+                profile = UserProfile.objects.create(user=user, role='staff')
+                role = profile.role
+                role_display = profile.role_display
+                permissions = profile.permissions
             
             users_data.append({
                 'id': user.id,
@@ -240,7 +274,77 @@ class UsersListView(APIView):
                 'date_joined': user.date_joined.isoformat(),
                 'last_login': user.last_login.isoformat() if user.last_login else None,
                 'sales_count': sales_count,
-                'sales_total': float(sales_total)
+                'sales_total': float(sales_total),
+                'role': role,
+                'role_display': role_display,
+                'permissions': permissions
             })
         
         return Response(users_data)
+
+
+class UserPermissionsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get current user's permissions"""
+        permissions = get_user_permissions(request.user)
+        
+        try:
+            profile = request.user.profile
+            role = profile.role
+            role_display = profile.role_display
+        except UserProfile.DoesNotExist:
+            profile = UserProfile.objects.create(user=request.user, role='staff')
+            role = profile.role
+            role_display = profile.role_display
+        
+        return Response({
+            'user_id': request.user.id,
+            'username': request.user.username,
+            'role': role,
+            'role_display': role_display,
+            'permissions': permissions,
+            'is_superuser': request.user.is_superuser
+        })
+
+
+class UpdateUserRoleView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('manage_users')
+    def post(self, request):
+        """Update user role"""
+        user_id = request.data.get('user_id')
+        new_role = request.data.get('role')
+        
+        if not user_id or not new_role:
+            return Response({
+                'error': 'user_id and role are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate role
+        valid_roles = [choice[0] for choice in UserProfile.ROLE_CHOICES]
+        if new_role not in valid_roles:
+            return Response({
+                'error': f'Invalid role. Valid roles: {valid_roles}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(id=user_id)
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            profile.role = new_role
+            profile.save()
+            
+            return Response({
+                'message': f'User {user.username} role updated to {profile.role_display}',
+                'user_id': user.id,
+                'username': user.username,
+                'role': profile.role,
+                'role_display': profile.role_display,
+                'permissions': profile.permissions
+            })
+        except User.DoesNotExist:
+            return Response({
+                'error': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)

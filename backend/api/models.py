@@ -1,18 +1,65 @@
 from django.db import models
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
+from decimal import Decimal
 
 
-class User(models.Model):
-    email = models.EmailField(unique=True)
-    password_hash = models.CharField(max_length=255)
-    full_name = models.CharField(max_length=255, blank=True, null=True)
-    role = models.CharField(max_length=50, default='staff')
+class UserProfile(models.Model):
+    ROLE_CHOICES = [
+        ('super_admin', 'Super Administrator'),
+        ('admin', 'Administrator'),
+        ('manager', 'Store Manager'),
+        ('cashier', 'Cashier'),
+        ('staff', 'Staff Member'),
+        ('viewer', 'Viewer Only'),
+    ]
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='staff')
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    def set_password(self, raw):
-        self.password_hash = make_password(raw)
+    
+    @property
+    def permissions(self):
+        """Return permissions based on role"""
+        role_permissions = {
+            'super_admin': [
+                'view_dashboard', 'manage_products', 'manage_sales', 'view_analytics', 
+                'manage_users', 'manage_settings', 'pos_access', 'view_reports'
+            ],
+            'admin': [
+                'view_dashboard', 'manage_products', 'manage_sales', 'view_analytics', 
+                'manage_users', 'pos_access', 'view_reports'
+            ],
+            'manager': [
+                'view_dashboard', 'manage_products', 'view_sales', 'view_analytics', 
+                'pos_access', 'view_reports'
+            ],
+            'cashier': [
+                'view_dashboard', 'view_products', 'pos_access', 'view_sales'
+            ],
+            'staff': [
+                'view_dashboard', 'view_products', 'pos_access'
+            ],
+            'viewer': [
+                'view_dashboard', 'view_products', 'view_sales'
+            ]
+        }
+        return role_permissions.get(self.role, [])
+    
+    def has_permission(self, permission):
+        """Check if user has specific permission"""
+        return permission in self.permissions
+    
+    @property
+    def role_display(self):
+        """Get human-readable role name"""
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.role_display}"
     
     def __str__(self):
         return self.email

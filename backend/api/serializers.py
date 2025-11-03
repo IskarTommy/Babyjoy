@@ -28,6 +28,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
+    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    
     class Meta:
         model = SaleItem
         fields = ['id', 'product', 'quantity', 'unit_price', 'subtotal']
@@ -43,11 +45,13 @@ class SaleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         sale = Sale.objects.create(**validated_data)
-        for item in items_data:
-            subtotal = item['unit_price'] * item['quantity']
-            si = SaleItem.objects.create(sale=sale, subtotal=subtotal, **item)
+        for item_data in items_data:
+            # Remove subtotal from item_data if it exists to avoid duplicate
+            item_data.pop('subtotal', None)
+            # Calculate subtotal
+            subtotal = item_data['unit_price'] * item_data['quantity']
+            si = SaleItem.objects.create(sale=sale, subtotal=subtotal, **item_data)
             # Decrement Stock Safely
-
             if si.product:
                 si.product.stock = max(si.product.stock - si.quantity, 0)
                 si.product.save()

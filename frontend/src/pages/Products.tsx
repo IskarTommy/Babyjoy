@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { useQuery, useMutation, useQueryClient, UseMutationResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { formatCurrency } from "@/libs/utils";
+import { RoleBasedBreadcrumb } from "@/components/RoleBasedNavigation";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 type Product = {
   id: number;
@@ -97,16 +99,19 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
+      <RoleBasedBreadcrumb currentPage="Products" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Products</h1>
           <p className="text-muted-foreground">Manage your inventory</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setShowForm((s) => !s)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {showForm ? "Cancel" : "Add Product"}
-          </Button>
+          <PermissionGuard permission="manage_products">
+            <Button onClick={() => setShowForm((s) => !s)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {showForm ? "Cancel" : "Add Product"}
+            </Button>
+          </PermissionGuard>
         </div>
       </div>
 
