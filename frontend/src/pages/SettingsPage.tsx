@@ -1,6 +1,6 @@
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import { Store, CreditCard, Bell, Shield, Printer, Database } from "lucide-react";
 
 export default function SettingsPage() {
