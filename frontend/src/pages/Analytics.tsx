@@ -1,18 +1,12 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, AlertTriangle } from "lucide-react";
+import { apiCall } from "@/libs/api";
 
 async function fetchAnalytics() {
-  const [salesRes, productsRes] = await Promise.all([
-    fetch('/api/sales/'),
-    fetch('/api/products/')
-  ]);
-  
-  const sales = salesRes.ok ? await salesRes.json() : [];
-  const products = productsRes.ok ? await productsRes.json() : [];
-  
-  return { sales, products };
+  const response = await apiCall('/analytics/');
+  return response.json();
 }
 
 export default function Analytics() {
@@ -25,8 +19,8 @@ export default function Analytics() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Analytics</h1>
-          <p className="text-muted-foreground">Track your business performance</p>
+          <h1 className="text-3xl font-bold">Business Analytics</h1>
+          <p className="text-muted-foreground">Overall store performance and financial insights</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
@@ -48,70 +42,75 @@ export default function Analytics() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Analytics</h1>
-          <p className="text-muted-foreground">Track your business performance</p>
+          <h1 className="text-3xl font-bold">Business Analytics</h1>
+          <p className="text-muted-foreground">Overall store performance and financial insights</p>
         </div>
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">Failed to load analytics data</p>
+            <p className="text-red-500">Failed to load analytics data: {error.message}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const { sales = [], products = [] } = data || {};
+  const {
+    statistics = {},
+    daily_sales = [],
+    payment_methods = [],
+    top_products = [],
+    low_stock_products = []
+  } = data || {};
   
-  // Calculate metrics
-  const totalRevenue = sales.reduce((sum: number, sale: any) => sum + parseFloat(sale.total_amount || 0), 0);
-  const totalProducts = products.length;
-  const totalSales = sales.length;
-  const lowStockProducts = products.filter((p: any) => (p.stock || 0) <= (p.reorder_level || 5)).length;
+  // Extract statistics from backend
+  const {
+    total_revenue = 0,
+    total_orders = 0,
+    today_revenue = 0,
+    today_orders = 0,
+    avg_order_value = 0
+  } = statistics;
   
-  // Calculate today's metrics
-  const today = new Date().toDateString();
-  const todaySales = sales.filter((sale: any) => new Date(sale.created_at).toDateString() === today);
-  const todayRevenue = todaySales.reduce((sum: number, sale: any) => sum + parseFloat(sale.total_amount || 0), 0);
-  
-  // Calculate average order value
-  const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
+  // Calculate weekly revenue from daily sales
+  const weekRevenue = daily_sales.reduce((sum: number, day: any) => sum + (day.revenue || 0), 0);
+  const weekOrders = daily_sales.reduce((sum: number, day: any) => sum + (day.orders || 0), 0);
 
   const metrics = [
     {
-      title: "Total Revenue",
-      value: `$${totalRevenue.toFixed(2)}`,
+      title: "Total Store Revenue",
+      value: `₵${total_revenue.toFixed(2)}`,
       icon: DollarSign,
-      trend: todayRevenue > 0 ? "up" : "neutral",
-      subtitle: `$${todayRevenue.toFixed(2)} today`
+      trend: today_revenue > 0 ? "up" : "neutral",
+      subtitle: `All time • ${total_orders} orders`
     },
     {
-      title: "Total Sales",
-      value: totalSales.toString(),
-      icon: ShoppingCart,
-      trend: todaySales.length > 0 ? "up" : "neutral",
-      subtitle: `${todaySales.length} today`
-    },
-    {
-      title: "Products",
-      value: totalProducts.toString(),
-      icon: Package,
-      trend: lowStockProducts > 0 ? "down" : "neutral",
-      subtitle: `${lowStockProducts} low stock`
-    },
-    {
-      title: "Avg Order Value",
-      value: `$${avgOrderValue.toFixed(2)}`,
+      title: "Today's Performance",
+      value: `₵${today_revenue.toFixed(2)}`,
       icon: TrendingUp,
-      trend: "neutral",
-      subtitle: "Per transaction"
+      trend: today_orders > 0 ? "up" : "neutral",
+      subtitle: `${today_orders} orders today`
+    },
+    {
+      title: "Weekly Revenue",
+      value: `₵${weekRevenue.toFixed(2)}`,
+      icon: ShoppingCart,
+      trend: weekOrders > 0 ? "up" : "neutral",
+      subtitle: `Last 7 days • ${weekOrders} orders`
+    },
+    {
+      title: "Average Order Value",
+      value: `₵${avg_order_value.toFixed(2)}`,
+      icon: Package,
+      trend: avg_order_value > 50 ? "up" : "neutral",
+      subtitle: `${low_stock_products.length} low stock items`
     }
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Analytics</h1>
-        <p className="text-muted-foreground">Track your business performance</p>
+        <h1 className="text-3xl font-bold">Business Analytics</h1>
+        <p className="text-muted-foreground">Overall store performance and financial insights</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -133,66 +132,114 @@ export default function Analytics() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Daily Sales Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Sales</CardTitle>
+            <CardTitle>7-Day Sales Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {sales.slice(0, 5).map((sale: any) => (
-                <div key={sale.id} className="flex items-center justify-between">
+            <div className="space-y-3">
+              {daily_sales.map((day: any) => (
+                <div key={day.date} className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{sale.receipt_number}</p>
+                    <p className="font-medium">{day.day}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(sale.created_at).toLocaleDateString()}
+                      {new Date(day.date).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold">${parseFloat(sale.total_amount || 0).toFixed(2)}</p>
-                    <p className="text-sm text-muted-foreground">{sale.items?.length || 0} items</p>
+                    <p className="font-semibold">₵{day.revenue.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">{day.orders} orders</p>
                   </div>
                 </div>
               ))}
-              {sales.length === 0 && (
+              {daily_sales.length === 0 && (
                 <p className="text-center text-muted-foreground py-4">No sales data available</p>
               )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Top Products */}
         <Card>
           <CardHeader>
-            <CardTitle>Inventory Status</CardTitle>
+            <CardTitle>Top Selling Products</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {products.slice(0, 5).map((product: any) => {
-                const isLowStock = (product.stock || 0) <= (product.reorder_level || 5);
-                return (
-                  <div key={product.id} className="flex items-center justify-between">
+            <div className="space-y-3">
+              {top_products.map((product: any, index: number) => (
+                <div key={product.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
                     <div>
                       <p className="font-medium">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">${parseFloat(product.price || 0).toFixed(2)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${isLowStock ? 'text-red-500' : 'text-green-500'}`}>
-                        {product.stock || 0} units
-                      </p>
-                      {isLowStock && (
-                        <p className="text-xs text-red-500">Low Stock</p>
-                      )}
+                      <p className="text-sm text-muted-foreground">{product.sales} sold</p>
                     </div>
                   </div>
-                );
-              })}
-              {products.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">No products available</p>
+                  <div className="text-right">
+                    <p className="font-semibold">₵{product.revenue.toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+              {top_products.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">No product data available</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Low Stock Alert */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              Low Stock Alert
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {low_stock_products.map((product: any) => (
+                <div key={product.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Reorder at: {product.reorder_level}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-red-600">{product.stock} left</p>
+                    <p className="text-xs text-red-500">Low Stock</p>
+                  </div>
+                </div>
+              ))}
+              {low_stock_products.length === 0 && (
+                <p className="text-center text-green-600 py-4">All products well stocked!</p>
               )}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment Methods */}
+      {payment_methods.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Method Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {payment_methods.map((method: any) => (
+                <div key={method.name} className="text-center p-4 border rounded-lg">
+                  <p className="font-medium">{method.name}</p>
+                  <p className="text-2xl font-bold text-blue-600">₵{method.value.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">{method.count} transactions</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
