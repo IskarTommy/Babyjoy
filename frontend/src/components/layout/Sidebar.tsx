@@ -1,6 +1,6 @@
 import { LayoutDashboard, Package, ShoppingCart, BarChart3, Users, Settings } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn } from "@/libs/utils";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
