@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Users, Settings, Receipt } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/libs/utils";
 
@@ -6,6 +6,7 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/products", icon: Package, label: "Products" },
   { to: "/pos", icon: ShoppingCart, label: "POS" },
+  { to: "/sales", icon: Receipt, label: "Sales" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/users", icon: Users, label: "Users" },
   { to: "/settings", icon: Settings, label: "Settings" },

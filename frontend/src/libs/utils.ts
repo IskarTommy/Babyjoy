@@ -5,12 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency: string = "GHS"): string {
+export function formatCurrency(amount: number | string | undefined, currency: string = "GHS"): string {
+  // Convert to number and handle edge cases
+  const numAmount = typeof amount === 'number' ? amount : parseFloat(String(amount || 0));
+  
+  // Handle NaN or invalid numbers
+  if (isNaN(numAmount)) {
+    return currency === "GHS" ? "₵0.00" : "$0.00";
+  }
+  
   if (currency === "GHS") {
-    return `₵${amount.toFixed(2)}`;
+    return `₵${numAmount.toFixed(2)}`;
   }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,
-  }).format(amount);
+  }).format(numAmount);
 }

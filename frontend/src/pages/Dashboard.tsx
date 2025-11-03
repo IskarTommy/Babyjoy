@@ -1,38 +1,40 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react";
+import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/libs/utils";
-
-async function fetchProducts() {
-  const res = await fetch("/api/products/");
-  if (!res.ok) throw new Error("Failed to load products");
-  return res.json();
-}
-
-async function fetchSales() {
-  const res = await fetch("/api/sales/");
-  if (!res.ok) throw new Error("Failed to load sales");
-  return res.json();
-}
+import { fetchProducts, fetchSales, fetchAnalytics } from "@/libs/api";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
   const productsQuery = useQuery<any[], Error>({ queryKey: ["products"], queryFn: fetchProducts });
   const salesQuery = useQuery<any[], Error>({ queryKey: ["sales"], queryFn: fetchSales });
+  const analyticsQuery = useQuery<any, Error>({ queryKey: ["analytics"], queryFn: fetchAnalytics });
 
   const products = productsQuery.data ?? [];
   const sales = salesQuery.data ?? [];
+  const analytics = analyticsQuery.data;
 
-  const totalSales = (sales as any[]).reduce((s: number, sale: any) => s + parseFloat(sale.total_amount || 0), 0);
-  const ordersToday = (sales as any[]).filter((sale: any) => {
+  // Use analytics data or fallback to calculated data
+  const dailySalesData = analytics?.daily_sales || [];
+  const paymentData = analytics?.payment_methods || [];
+  const topProducts = analytics?.top_products || [];
+  const statistics = analytics?.statistics || {};
+
+  // Use analytics statistics or calculate from sales data
+  const totalSales = statistics.total_revenue || (sales as any[]).reduce((s: number, sale: any) => s + parseFloat(sale.total_amount || 0), 0);
+  const ordersToday = statistics.today_orders || (sales as any[]).filter((sale: any) => {
     const d = new Date(sale.created_at);
     const today = new Date();
     return d.toDateString() === today.toDateString();
   }).length;
+  const todayRevenue = statistics.today_revenue || 0;
+  const avgOrderValue = statistics.avg_order_value || (sales.length > 0 ? totalSales / sales.length : 0);
 
-  const lowStockCount = products.filter(p => (p.stock || 0) <= (p.reorder_level || 5)).length;
-  const avgOrderValue = sales.length > 0 ? totalSales / sales.length : 0;
+  const lowStockCount = analytics?.low_stock_products?.length || products.filter(p => (p.stock || 0) <= (p.reorder_level || 5)).length;
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   const stats = [
     {
@@ -40,8 +42,8 @@ export default function Dashboard() {
       value: formatCurrency(totalSales),
       icon: DollarSign,
       color: "text-green-600",
-      change: ordersToday > 0 ? `+${ordersToday} today` : "No sales today",
-      changeColor: ordersToday > 0 ? "text-green-600" : "text-gray-500"
+      change: `${formatCurrency(todayRevenue)} today`,
+      changeColor: todayRevenue > 0 ? "text-green-600" : "text-gray-500"
     },
     {
       title: "Total Products",
@@ -122,6 +124,89 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Charts Section */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Sales Trend (Last 7 Days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dailySalesData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: any, name: string) => [
+                    name === 'revenue' ? formatCurrency(value) : value,
+                    name === 'revenue' ? 'Revenue' : 'Orders'
+                  ]}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#8884d8" 
+                  strokeWidth={2}
+                  dot={{ fill: '#8884d8' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Methods</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={paymentData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }: any) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {paymentData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: any) => formatCurrency(value)} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Products by Sales</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={topProducts}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value: any, name: string) => [
+                  name === 'revenue' ? formatCurrency(value) : value,
+                  name === 'revenue' ? 'Revenue' : 'Units Sold'
+                ]}
+              />
+              <Bar dataKey="sales" fill="#8884d8" name="sales" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
