@@ -22,7 +22,7 @@ export default function POS() {
   const products = productsQuery.data ?? [];
 
   const [cart, setCart] = useState<{ product: Product; qty: number }[]>([]);
-  // Customer name/phone intentionally removed per request
+  const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -44,6 +44,10 @@ export default function POS() {
   }
 
   const total = cart.reduce((s, it) => s + it.product.price * it.qty, 0);
+  
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const saleMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -93,13 +97,24 @@ export default function POS() {
           <Card>
             <CardHeader>
               <CardTitle>Products</CardTitle>
+              <div className="mt-4">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md"
+                />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                {products.length === 0 ? (
-                  <div className="col-span-2 text-center text-muted-foreground">No products</div>
+              <div className="grid grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+                {filteredProducts.length === 0 ? (
+                  <div className="col-span-2 text-center text-muted-foreground">
+                    {searchTerm ? "No products found" : "No products"}
+                  </div>
                 ) : (
-                  products.map(p => (
+                  filteredProducts.map(p => (
                     <div key={p.id} className="rounded border p-3 flex items-center justify-between">
                       <div>
                         <div className="font-medium">{p.name}</div>
@@ -134,7 +149,13 @@ export default function POS() {
                         <div className="text-sm text-muted-foreground">${item.product.price.toFixed(2)}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <input type="number" min={1} value={item.qty} onChange={(e)=>changeQty(item.product.id, parseInt(e.target.value||'0',10))} className="input input-sm w-16" />
+                        <input 
+                          type="number" 
+                          min={1} 
+                          value={item.qty} 
+                          onChange={(e)=>changeQty(item.product.id, parseInt(e.target.value||'0',10))} 
+                          className="w-16 px-2 py-1 border border-input rounded text-center"
+                        />
                         <div className="font-medium">${(item.product.price * item.qty).toFixed(2)}</div>
                       </div>
                     </div>

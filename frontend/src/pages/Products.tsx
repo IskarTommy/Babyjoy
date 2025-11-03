@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient, UseMutationResult } from "@tanstack/react-query";
 import { useState } from "react";
+import { formatCurrency } from "@/libs/utils";
 
 type Product = {
   id: number;
@@ -112,10 +113,10 @@ export default function Products() {
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <input name="name" value={form.name} onChange={onChange} placeholder="Product name" className="input input-bordered w-full" />
-            <input name="sku" value={form.sku} onChange={onChange} placeholder="SKU (A-Z0-9_- )" className="input input-bordered w-full" />
-            <input name="price" value={form.price} onChange={onChange} placeholder="Price" type="number" step="0.01" className="input input-bordered w-full" />
-            <input name="cost" value={form.cost} onChange={onChange} placeholder="Cost" type="number" step="0.01" className="input input-bordered w-full" />
+            <input name="name" value={form.name} onChange={onChange} placeholder="Product name" className="w-full px-3 py-2 border border-input rounded-md" />
+            <input name="sku" value={form.sku} onChange={onChange} placeholder="SKU (A-Z0-9_- )" className="w-full px-3 py-2 border border-input rounded-md" />
+            <input name="price" value={form.price} onChange={onChange} placeholder="Price (₵)" type="number" step="0.01" className="w-full px-3 py-2 border border-input rounded-md" />
+            <input name="cost" value={form.cost} onChange={onChange} placeholder="Cost (₵)" type="number" step="0.01" className="w-full px-3 py-2 border border-input rounded-md" />
             <input name="stock" value={form.stock} onChange={onChange} placeholder="Stock" type="number" className="input input-bordered w-full" />
             <input name="image_url" value={(form as any).image_url || ""} onChange={onChange} placeholder="Image URL (optional)" className="input input-bordered w-full" />
             <input type="file" accept="image/*" onChange={handleFileChange} className="file-input w-full" />
@@ -159,7 +160,7 @@ export default function Products() {
                         </td>
                         <td className="px-3 py-2">{p.name}</td>
                       <td className="px-3 py-2">{p.sku ?? "—"}</td>
-                      <td className="px-3 py-2">{p.price}</td>
+                      <td className="px-3 py-2">{formatCurrency(Number(p.price))}</td>
                       <td className="px-3 py-2">{p.stock ?? 0}</td>
                       <td className="px-3 py-2">
                         <button

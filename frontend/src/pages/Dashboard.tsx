@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Package, ShoppingCart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { formatCurrency } from "@/libs/utils";
 
 async function fetchProducts() {
   const res = await fetch("/api/products/");
@@ -29,24 +31,41 @@ export default function Dashboard() {
     return d.toDateString() === today.toDateString();
   }).length;
 
+  const lowStockCount = products.filter(p => (p.stock || 0) <= (p.reorder_level || 5)).length;
+  const avgOrderValue = sales.length > 0 ? totalSales / sales.length : 0;
+
   const stats = [
     {
-      title: "Total Sales",
-      value: `$${totalSales.toFixed(2)}`,
+      title: "Total Revenue",
+      value: formatCurrency(totalSales),
       icon: DollarSign,
-      color: "text-primary",
+      color: "text-green-600",
+      change: ordersToday > 0 ? `+${ordersToday} today` : "No sales today",
+      changeColor: ordersToday > 0 ? "text-green-600" : "text-gray-500"
     },
     {
-      title: "Products",
+      title: "Total Products",
       value: `${products.length}`,
       icon: Package,
-      color: "text-secondary",
+      color: "text-blue-600",
+      change: lowStockCount > 0 ? `${lowStockCount} low stock` : "All stocked",
+      changeColor: lowStockCount > 0 ? "text-red-600" : "text-green-600"
     },
     {
       title: "Orders Today",
       value: `${ordersToday}`,
       icon: ShoppingCart,
-      color: "text-accent",
+      color: "text-purple-600",
+      change: `${sales.length} total orders`,
+      changeColor: "text-gray-600"
+    },
+    {
+      title: "Avg Order Value",
+      value: formatCurrency(avgOrderValue),
+      icon: TrendingUp,
+      color: "text-orange-600",
+      change: sales.length > 0 ? "Per transaction" : "No data",
+      changeColor: "text-gray-600"
     },
   ];
 
@@ -55,14 +74,20 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Welcome back! Here's your store overview.</p>
-        <div className="mt-4">
+        <div className="mt-4 flex gap-3">
           <Link to="/pos">
-            <button className="inline-flex items-center rounded bg-primary px-3 py-2 text-white">Go to POS</button>
+            <Button>Go to POS</Button>
+          </Link>
+          <Link to="/products">
+            <Button variant="outline">Manage Products</Button>
+          </Link>
+          <Link to="/sales">
+            <Button variant="outline">View Sales</Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -71,15 +96,40 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
+              <p className={`text-xs ${stat.changeColor} mt-1`}>
+                {stat.change}
+              </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {lowStockCount > 0 && (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              Inventory Alert
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-700">
+              You have {lowStockCount} product{lowStockCount > 1 ? 's' : ''} running low on stock. 
+              <Link to="/products" className="ml-2 underline hover:no-underline">
+                Manage inventory →
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Recent Sales</CardTitle>
+            <Link to="/sales">
+              <Button variant="outline" size="sm">View All</Button>
+            </Link>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -87,18 +137,26 @@ export default function Dashboard() {
                 <div key={sale.id} className="flex items-center justify-between border-b pb-3 last:border-0">
                   <div>
                     <p className="font-medium">{sale.receipt_number}</p>
-                    <p className="text-sm text-muted-foreground">{sale.items?.length || 0} items</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(sale.created_at).toLocaleDateString()} • {sale.items?.length || 0} items
+                    </p>
                   </div>
-                  <p className="font-semibold">${parseFloat(sale.total_amount || 0).toFixed(2)}</p>
+                  <p className="font-semibold">{formatCurrency(parseFloat(sale.total_amount || 0))}</p>
                 </div>
               ))}
+              {sales.length === 0 && (
+                <p className="text-muted-foreground text-center py-4">No sales yet</p>
+              )}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Low Stock Alert</CardTitle>
+            <CardTitle>Inventory Status</CardTitle>
+            <Link to="/products">
+              <Button variant="outline" size="sm">Manage</Button>
+            </Link>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -108,11 +166,13 @@ export default function Dashboard() {
                     <p className="font-medium">{p.name}</p>
                     <p className="text-sm text-muted-foreground">Stock: {p.stock ?? 0}</p>
                   </div>
-                  <span className="text-xs font-medium text-destructive">Low</span>
+                  <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-1 rounded">
+                    Low Stock
+                  </span>
                 </div>
               ))}
               {products.filter(p => p.stock <= (p.reorder_level ?? 10)).length === 0 && (
-                <p className="text-muted-foreground">No low-stock products</p>
+                <p className="text-muted-foreground text-center py-4">All products well stocked</p>
               )}
             </div>
           </CardContent>
