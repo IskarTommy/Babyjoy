@@ -113,6 +113,7 @@ export const updateProduct = async (id: number, productData: any) => {
     method: 'PUT',
     body: JSON.stringify(productData),
   });
+  if (!response.ok) throw new Error('Failed to update product');
   return response.json();
 };
 

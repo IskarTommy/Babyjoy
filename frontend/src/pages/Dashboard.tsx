@@ -41,7 +41,7 @@ export default function Dashboard() {
   const todayRevenue = statistics.today_revenue || 0;
   const avgOrderValue = statistics.avg_order_value || (sales.length > 0 ? totalSales / sales.length : 0);
 
-  const lowStockCount = analytics?.low_stock_products?.length || products.filter(p => (p.stock || 0) <= (p.reorder_level || 5)).length;
+  const lowStockCount = analytics?.low_stock_products?.length || products.filter(p => (p.stock || 0) <= (p.reorder_level || 3)).length;
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
@@ -335,7 +335,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {products.filter(p => p.stock <= (p.reorder_level ?? 10)).slice(0,6).map((p:any) => (
+              {products.filter(p => p.stock <= (p.reorder_level ?? 3)).slice(0,6).map((p:any) => (
                 <div key={p.id} className="flex items-center justify-between border-b pb-3 last:border-0">
                   <div>
                     <p className="font-medium">{p.name}</p>
@@ -346,7 +346,7 @@ export default function Dashboard() {
                   </span>
                 </div>
               ))}
-              {products.filter(p => p.stock <= (p.reorder_level ?? 10)).length === 0 && (
+              {products.filter(p => p.stock <= (p.reorder_level ?? 3)).length === 0 && (
                 <p className="text-muted-foreground text-center py-4">All products well stocked</p>
               )}
             </div>

@@ -63,6 +63,7 @@ export default function Products() {
         method: "POST",
         body: JSON.stringify(payload),
       });
+      if (!response.ok) throw new Error('Failed to create product');
       return response.json();
     },
     onSuccess() {
@@ -72,6 +73,7 @@ export default function Products() {
     },
     onError: (error: Error) => {
       console.error('Failed to create product:', error);
+      alert(`Failed to create product: ${error.message}`);
     }
   });
 
@@ -86,6 +88,7 @@ export default function Products() {
     },
     onError: (error: Error) => {
       console.error('Failed to update product:', error);
+      alert(`Failed to update product: ${error.message}`);
     }
   });
 
@@ -117,14 +120,22 @@ export default function Products() {
   async function saveEdit() {
     if (!editingId) return;
     
-    const payload = {
+    const payload: any = {
       name: editForm.name,
-      sku: editForm.sku || undefined,
       price: parseFloat(String(editForm.price)) || 0,
-      cost: editForm.cost ? parseFloat(String(editForm.cost)) : undefined,
       stock: editForm.stock ? parseInt(String(editForm.stock), 10) : 0,
-      image_url: editForm.image_url || undefined,
     };
+    
+    // Include optional fields if they have values
+    if (editForm.sku && editForm.sku.trim()) {
+      payload.sku = editForm.sku.trim().toUpperCase();
+    }
+    if (editForm.cost && editForm.cost.trim()) {
+      payload.cost = parseFloat(String(editForm.cost));
+    }
+    if (editForm.image_url && editForm.image_url.trim()) {
+      payload.image_url = editForm.image_url.trim();
+    }
     
     updateProductMutation.mutate({ id: editingId, data: payload });
   }
@@ -133,12 +144,21 @@ export default function Products() {
     e.preventDefault();
     const payload: any = {
       name: form.name,
-      sku: form.sku || undefined,
       price: parseFloat(String(form.price)) || 0,
-      cost: form.cost ? parseFloat(String(form.cost)) : undefined,
       stock: form.stock ? parseInt(String(form.stock), 10) : 0,
-      image_url: (form as any).image_url || undefined,
     };
+    
+    // Only include optional fields if they have values
+    if (form.sku && form.sku.trim()) {
+      payload.sku = form.sku.trim().toUpperCase();
+    }
+    if (form.cost && form.cost.trim()) {
+      payload.cost = parseFloat(String(form.cost));
+    }
+    if ((form as any).image_url && (form as any).image_url.trim()) {
+      payload.image_url = (form as any).image_url.trim();
+    }
+    
     addProduct.mutate(payload);
   }
 
@@ -296,9 +316,9 @@ export default function Products() {
                               className="w-full px-2 py-1 border border-input rounded text-sm"
                             />
                           ) : (
-                            <span className={p.stock && p.stock <= 5 ? "text-red-600 font-semibold" : ""}>
+                            <span className={p.stock && p.stock <= 3 ? "text-red-600 font-semibold" : ""}>
                               {p.stock ?? 0}
-                              {p.stock && p.stock <= 5 && " (Low)"}
+                              {p.stock && p.stock <= 3 && " (Low)"}
                             </span>
                           )}
                         </td>
