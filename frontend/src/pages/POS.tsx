@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Trash2, CreditCard, Smartphone } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/libs/utils";
 import { fetchProducts as apiFetchProducts, createSale } from "@/libs/api";
@@ -12,8 +13,10 @@ export default function POS() {
   const queryClient = useQueryClient();
   const [cart, setCart] = useState<{ product: Product; qty: number }[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const productsQuery = useQuery<Product[], Error>({ 
     queryKey: ['products'], 
@@ -46,10 +49,12 @@ export default function POS() {
 
   const saleMutation = useMutation({
     mutationFn: createSale,
-    onSuccess() {
+    onSuccess(data) {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setCart([]);
+      setSuccessMessage(`Sale completed! Receipt: ${data.receipt_number}`);
+      setTimeout(() => setSuccessMessage(null), 5000); // Clear after 5 seconds
     }
   });
 
@@ -94,6 +99,10 @@ export default function POS() {
     setCart((c) => c.map(item => item.product.id === productId ? { ...item, qty: Math.max(0, qty) } : item).filter(i=>i.qty>0));
   }
 
+  function removeFromCart(productId: number) {
+    setCart((c) => c.filter(item => item.product.id !== productId));
+  }
+
   const total = cart.reduce((s, it) => {
     const price = typeof it.product.price === 'number' ? it.product.price : 0;
     const qty = typeof it.qty === 'number' ? it.qty : 0;
@@ -110,7 +119,7 @@ export default function POS() {
     const payload = {
       receipt_number: receipt,
       total_amount: total,
-      payment_method: 'cash',
+      payment_method: paymentMethod,
       items: cart.map(c => ({ product: c.product.id, quantity: c.qty, unit_price: c.product.price }))
     };
     setIsSubmitting(true);
@@ -118,10 +127,12 @@ export default function POS() {
     saleMutation.mutate(payload, {
       onSuccess() {
         setIsSubmitting(false);
+        setMutationError(null);
       },
       onError(err: any) {
         setIsSubmitting(false);
         setMutationError(err?.message || String(err));
+        setSuccessMessage(null);
       }
     });
   }
@@ -177,7 +188,19 @@ export default function POS() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Cart</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Cart</CardTitle>
+                {cart.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCart([])}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Clear Cart
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {cart.length === 0 ? (
@@ -185,8 +208,8 @@ export default function POS() {
               ) : (
                 <div className="space-y-2">
                   {cart.map(item => (
-                    <div key={item.product.id} className="flex items-center justify-between">
-                      <div>
+                    <div key={item.product.id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex-1">
                         <div className="font-medium">{item.product.name}</div>
                         <div className="text-sm text-muted-foreground">{formatCurrency(item.product.price)}</div>
                       </div>
@@ -198,29 +221,64 @@ export default function POS() {
                           onChange={(e)=>changeQty(item.product.id, parseInt(e.target.value||'0',10))} 
                           className="w-16 px-2 py-1 border border-input rounded text-center"
                         />
-                        <div className="font-medium">{formatCurrency(item.product.price * item.qty)}</div>
+                        <div className="font-medium w-20 text-right">{formatCurrency(item.product.price * item.qty)}</div>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="space-y-2 pt-4 border-t">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal:</span>
-                  <span>{formatCurrency(total)}</span>
+              <div className="space-y-4 pt-4 border-t">
+                {/* Payment Method Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Payment Method</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "Cash" ? "default" : "outline"}
+                      onClick={() => setPaymentMethod("Cash")}
+                      className="flex items-center gap-2"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Cash
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "Momo" ? "default" : "outline"}
+                      onClick={() => setPaymentMethod("Momo")}
+                      className="flex items-center gap-2"
+                    >
+                      <Smartphone className="h-4 w-4" />
+                      Momo
+                    </Button>
+                  </div>
                 </div>
-                {/* Customer fields removed per request */}
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total:</span>
-                  <span>{formatCurrency(total)}</span>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal:</span>
+                    <span>{formatCurrency(total)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total:</span>
+                    <span>{formatCurrency(total)}</span>
+                  </div>
                 </div>
               </div>
 
               <Button className="w-full" size="lg" onClick={completeSale} disabled={isSubmitting || cart.length===0}>
-                {isSubmitting ? 'Processing...' : 'Complete Sale'}
+                {isSubmitting ? 'Processing...' : `Complete Sale (${paymentMethod})`}
               </Button>
-              {mutationError && <p className="text-red-500">{mutationError}</p>}
+              {mutationError && <p className="text-red-500 text-sm mt-2">{mutationError}</p>}
+              {successMessage && <p className="text-green-600 text-sm mt-2">{successMessage}</p>}
             </CardContent>
           </Card>
         </div>

@@ -103,6 +103,13 @@ class Sale(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sales')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        # Normalize payment method
+        if self.payment_method:
+            # Convert to title case for consistency
+            self.payment_method = self.payment_method.strip().title()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.receipt_number
     

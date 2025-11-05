@@ -1,3 +1,4 @@
+import React from "react";
 import { LayoutDashboard, Package, ShoppingCart, BarChart3, Users, Settings, Receipt } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/libs/utils";
