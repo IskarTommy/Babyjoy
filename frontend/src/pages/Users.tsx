@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, User, Shield, Clock, Mail, DollarSign, ShoppingCart, Edit, Save, X } from "lucide-react";
-import { fetchUsers, updateUserRole } from "@/libs/api";
+import { fetchUsers, updateUserRole, toggleUserStatus, resetUserPassword, updateUserProfile } from "@/libs/api";
 import { formatCurrency } from "@/libs/utils";
 import { PermissionGuard } from "@/components/PermissionGuard";
 
@@ -32,13 +32,32 @@ export default function Users() {
     }
   });
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: (userId: number) => toggleUserStatus(userId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      alert(data.message);
+    },
+    onError: (error: any) => {
+      console.error('Error toggling user status:', error);
+      alert('Failed to update user status');
+    }
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (userId: number) => resetUserPassword(userId),
+    onSuccess: (data) => {
+      alert(`Password reset successful! New password: ${data.new_password}`);
+    },
+    onError: (error: any) => {
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password');
+    }
+  });
+
   const roleOptions = [
     { value: 'super_admin', label: 'Super Administrator', color: 'bg-red-100 text-red-800' },
-    { value: 'admin', label: 'Administrator', color: 'bg-purple-100 text-purple-800' },
-    { value: 'manager', label: 'Store Manager', color: 'bg-blue-100 text-blue-800' },
     { value: 'cashier', label: 'Cashier', color: 'bg-green-100 text-green-800' },
-    { value: 'staff', label: 'Staff Member', color: 'bg-gray-100 text-gray-800' },
-    { value: 'viewer', label: 'Viewer Only', color: 'bg-yellow-100 text-yellow-800' },
   ];
 
   const getRoleColor = (role: string) => {
@@ -372,19 +391,28 @@ export default function Users() {
             </div>
             
             <div className="flex gap-2 mt-6">
-              <Button variant="outline" size="sm">
-                Edit User
-              </Button>
-              <Button variant="outline" size="sm">
-                Reset Password
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className={selectedUser.is_active ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
-              >
-                {selectedUser.is_active ? 'Deactivate' : 'Activate'}
-              </Button>
+              <PermissionGuard permission="manage_users">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => resetPasswordMutation.mutate(selectedUser.id)}
+                  disabled={resetPasswordMutation.isPending}
+                >
+                  {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => toggleStatusMutation.mutate(selectedUser.id)}
+                  disabled={toggleStatusMutation.isPending}
+                  className={selectedUser.is_active ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                >
+                  {toggleStatusMutation.isPending 
+                    ? 'Updating...' 
+                    : (selectedUser.is_active ? 'Deactivate' : 'Activate')
+                  }
+                </Button>
+              </PermissionGuard>
             </div>
           </CardContent>
         </Card>

@@ -42,6 +42,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshPermissionsWithToken = async (authToken: string): Promise<void> => {
+    try {
+      const response = await fetch('/api/users/permissions/', {
+        headers: {
+          'Authorization': `Token ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const permissionData = await response.json();
+        setUser(currentUser => {
+          if (!currentUser) return null;
+          const updatedUser = {
+            ...currentUser,
+            role: permissionData.role,
+            role_display: permissionData.role_display,
+            permissions: permissionData.permissions,
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          return updatedUser;
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing permissions:', error);
+    }
+  };
+
   useEffect(() => {
     // Check for existing token on app start
     const savedToken = localStorage.getItem('token');
@@ -50,7 +78,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (savedToken && savedUser) {
       setToken(savedToken);
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        
+        // If user doesn't have permissions, refresh them
+        if (!parsedUser.permissions || parsedUser.permissions.length === 0) {
+          console.log('Refreshing permissions on app load...');
+          refreshPermissionsWithToken(savedToken);
+        }
       } catch (error) {
         console.error('Error parsing saved user:', error);
         localStorage.removeItem('token');
@@ -80,6 +115,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(data.user);
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // If user doesn't have permissions, refresh them
+        if (!data.user.permissions || data.user.permissions.length === 0) {
+          console.log('User permissions not found, refreshing...');
+          await refreshPermissionsWithToken(data.token);
+        } else {
+          console.log('User permissions loaded:', data.user.permissions);
+        }
+        
         return true;
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
@@ -107,29 +151,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshPermissions = async (): Promise<void> => {
     if (!token) return;
-    
-    try {
-      const response = await fetch('/api/users/permissions/', {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const permissionData = await response.json();
-        const updatedUser = {
-          ...user!,
-          role: permissionData.role,
-          role_display: permissionData.role_display,
-          permissions: permissionData.permissions,
-        };
-        setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      }
-    } catch (error) {
-      console.error('Error refreshing permissions:', error);
-    }
+    await refreshPermissionsWithToken(token);
   };
 
   const value: AuthContextType = {

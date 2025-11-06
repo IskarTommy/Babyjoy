@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     CategoryListCreateView, ProductListCreateView, SaleListCreateView, 
     ProductImageUploadView, ProductRetrieveUpdateDestroyView, LoginView, LogoutView, 
-    UserProfileView, AnalyticsView, UsersListView, UserPermissionsView, UpdateUserRoleView
+    UserProfileView, AnalyticsView, UsersListView, UserPermissionsView, UpdateUserRoleView,
+    ToggleUserStatusView, ResetUserPasswordView, UpdateUserProfileView
 )
 
 urlpatterns = [
@@ -16,6 +17,9 @@ urlpatterns = [
     path('users/', UsersListView.as_view(), name='users'),
     path('users/permissions/', UserPermissionsView.as_view(), name='user-permissions'),
     path('users/update-role/', UpdateUserRoleView.as_view(), name='update-user-role'),
+    path('users/toggle-status/', ToggleUserStatusView.as_view(), name='toggle-user-status'),
+    path('users/reset-password/', ResetUserPasswordView.as_view(), name='reset-user-password'),
+    path('users/update-profile/', UpdateUserProfileView.as_view(), name='update-user-profile'),
     
     # Existing endpoints
     path('categories/', CategoryListCreateView.as_view(), name='categories'),

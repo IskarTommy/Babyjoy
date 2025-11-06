@@ -115,6 +115,12 @@ class LoginView(APIView):
             # Create or get token
             token, created = Token.objects.get_or_create(user=user)
             
+            # Get or create user profile
+            try:
+                profile = user.profile
+            except UserProfile.DoesNotExist:
+                profile = UserProfile.objects.create(user=user, role='cashier')
+            
             return Response({
                 'token': token.key,
                 'user': {
@@ -124,6 +130,9 @@ class LoginView(APIView):
                     'last_name': user.last_name,
                     'is_staff': user.is_staff,
                     'is_superuser': user.is_superuser,
+                    'role': profile.role,
+                    'role_display': profile.role_display,
+                    'permissions': profile.permissions,
                 }
             }, status=status.HTTP_200_OK)
         else:
@@ -360,6 +369,107 @@ class UpdateUserRoleView(APIView):
                 'role': profile.role,
                 'role_display': profile.role_display,
                 'permissions': profile.permissions
+            })
+        except User.DoesNotExist:
+            return Response({
+                'error': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class ToggleUserStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('manage_users')
+    def post(self, request):
+        """Activate or deactivate a user"""
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response({
+                'error': 'user_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(id=user_id)
+            user.is_active = not user.is_active
+            user.save()
+            
+            return Response({
+                'message': f'User {user.username} {"activated" if user.is_active else "deactivated"}',
+                'user_id': user.id,
+                'username': user.username,
+                'is_active': user.is_active
+            })
+        except User.DoesNotExist:
+            return Response({
+                'error': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class ResetUserPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('manage_users')
+    def post(self, request):
+        """Reset user password to a default value"""
+        user_id = request.data.get('user_id')
+        new_password = request.data.get('new_password', 'password123')  # Default password
+        
+        if not user_id:
+            return Response({
+                'error': 'user_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(id=user_id)
+            user.set_password(new_password)
+            user.save()
+            
+            return Response({
+                'message': f'Password reset for user {user.username}',
+                'user_id': user.id,
+                'username': user.username,
+                'new_password': new_password
+            })
+        except User.DoesNotExist:
+            return Response({
+                'error': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class UpdateUserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    @require_permission('manage_users')
+    def post(self, request):
+        """Update user profile information"""
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response({
+                'error': 'user_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # Update user fields
+            if 'first_name' in request.data:
+                user.first_name = request.data['first_name']
+            if 'last_name' in request.data:
+                user.last_name = request.data['last_name']
+            if 'email' in request.data:
+                user.email = request.data['email']
+            
+            user.save()
+            
+            return Response({
+                'message': f'User {user.username} profile updated',
+                'user_id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email
             })
         except User.DoesNotExist:
             return Response({

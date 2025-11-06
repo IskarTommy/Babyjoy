@@ -150,3 +150,30 @@ export const updateUserRole = async (userId: number, role: string) => {
   if (!response.ok) throw new Error('Failed to update user role');
   return response.json();
 };
+
+export const toggleUserStatus = async (userId: number) => {
+  const response = await apiCall('/users/toggle-status/', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  });
+  if (!response.ok) throw new Error('Failed to toggle user status');
+  return response.json();
+};
+
+export const resetUserPassword = async (userId: number, newPassword?: string) => {
+  const response = await apiCall('/users/reset-password/', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, new_password: newPassword }),
+  });
+  if (!response.ok) throw new Error('Failed to reset user password');
+  return response.json();
+};
+
+export const updateUserProfile = async (userId: number, profileData: any) => {
+  const response = await apiCall('/users/update-profile/', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, ...profileData }),
+  });
+  if (!response.ok) throw new Error('Failed to update user profile');
+  return response.json();
+};

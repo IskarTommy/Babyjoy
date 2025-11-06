@@ -88,8 +88,12 @@ export function RoleHelpCard(): React.ReactElement | null {
     return null;
   }
 
-  const userRole = user.role || 'staff';
-  const guide = roleGuides[userRole as keyof typeof roleGuides];
+  // Don't show anything if role is not loaded yet
+  if (!user.role) {
+    return null;
+  }
+
+  const guide = roleGuides[user.role as keyof typeof roleGuides];
   
   if (!guide) {
     return null;

@@ -1,6 +1,6 @@
 import React from "react";
 import { LayoutDashboard, Package, ShoppingCart, BarChart3, Users, Settings, Receipt } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { cn } from "@/libs/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { PermissionGuard } from "@/components/PermissionGuard";
@@ -16,7 +16,6 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   
   return (

@@ -7,15 +7,11 @@ from decimal import Decimal
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('super_admin', 'Super Administrator'),
-        ('admin', 'Administrator'),
-        ('manager', 'Store Manager'),
         ('cashier', 'Cashier'),
-        ('staff', 'Staff Member'),
-        ('viewer', 'Viewer Only'),
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='staff')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='cashier')
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -27,24 +23,10 @@ class UserProfile(models.Model):
         role_permissions = {
             'super_admin': [
                 'view_dashboard', 'manage_products', 'manage_sales', 'view_analytics', 
-                'manage_users', 'manage_settings', 'pos_access', 'view_reports'
-            ],
-            'admin': [
-                'view_dashboard', 'manage_products', 'manage_sales', 'view_analytics', 
-                'manage_users', 'pos_access', 'view_reports'
-            ],
-            'manager': [
-                'view_dashboard', 'manage_products', 'view_sales', 'view_analytics', 
-                'pos_access', 'view_reports'
+                'manage_users', 'manage_settings', 'pos_access', 'view_reports', 'view_products'
             ],
             'cashier': [
                 'view_dashboard', 'view_products', 'pos_access', 'view_sales'
-            ],
-            'staff': [
-                'view_dashboard', 'view_products', 'pos_access'
-            ],
-            'viewer': [
-                'view_dashboard', 'view_products', 'view_sales'
             ]
         }
         return role_permissions.get(self.role, [])

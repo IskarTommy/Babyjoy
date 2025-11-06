@@ -5,7 +5,7 @@ import { Store, CreditCard, Bell, Shield, Printer, Database } from "lucide-react
 
 export default function SettingsPage() {
   const [storeSettings, setStoreSettings] = useState({
-    storeName: "BabyJoy Store",
+    storeName: "Hafshat Kidz",
     storeAddress: "123 Liberation Road, Accra, Ghana",
     storePhone: "+233 24 123 4567",
     storeEmail: "info@babyjoy.com.gh",
