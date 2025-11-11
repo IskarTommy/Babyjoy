@@ -107,3 +107,63 @@ class SaleItem(models.Model):
         sale_num = getattr(self.sale, "receipt_number", None) or f"Sale {self.sale_id or 'Unknown'}"
         product_label = getattr(self.product, "name", None) or f"Product {self.product_id or 'Unknown'}"
         return f"{sale_num} - {product_label}"
+
+
+class StoreSettings(models.Model):
+    # Store Information
+    store_name = models.CharField(max_length=255, default='Hafshat Kidz')
+    store_address = models.TextField(default='123 Liberation Road, Accra, Ghana')
+    store_phone = models.CharField(max_length=50, default='+233 24 123 4567')
+    store_email = models.EmailField(default='info@hafshatkidz.com')
+    currency = models.CharField(max_length=10, default='GHS')
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=12.5)
+    
+    # POS Settings
+    receipt_footer = models.TextField(default='Thank you for shopping with us!')
+    auto_open_cash_drawer = models.BooleanField(default=True)
+    print_receipts = models.BooleanField(default=True)
+    ask_for_customer_info = models.BooleanField(default=False)
+    
+    # Notification Settings
+    low_stock_alerts = models.BooleanField(default=True)
+    daily_sales_report = models.BooleanField(default=True)
+    email_notifications = models.BooleanField(default=True)
+    sms_notifications = models.BooleanField(default=False)
+    
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='settings_updates')
+    
+    class Meta:
+        verbose_name = 'Store Settings'
+        verbose_name_plural = 'Store Settings'
+    
+    def __str__(self):
+        return f"Settings for {self.store_name}"
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create the singleton settings instance"""
+        settings, created = cls.objects.get_or_create(id=1)
+        return settings
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('low_stock', 'Low Stock Alert'),
+        ('sale', 'Sale Notification'),
+        ('system', 'System Notification'),
+    ]
+    
+    type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    related_product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.get_type_display()}: {self.title}"

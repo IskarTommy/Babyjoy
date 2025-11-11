@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/libs/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { Logo } from "@/components/Logo";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", permission: "view_dashboard" },
@@ -21,7 +22,7 @@ export const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 z-50 h-screen w-64 border-r bg-sidebar">
       <div className="flex h-16 items-center border-b px-6">
-        <h1 className="text-2xl font-bold text-primary">BabyJoy</h1>
+        <Logo />
       </div>
 
       <nav className="flex flex-col gap-1 p-4">

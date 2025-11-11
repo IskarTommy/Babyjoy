@@ -15,7 +15,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 import os, uuid
 
-from .models import Category, Product, Sale, SaleItem, UserProfile
+from .models import Category, Product, Sale, SaleItem, UserProfile, StoreSettings, Notification
 from .serializers import CategorySerializer, ProductSerializer, SaleSerializer
 from .permissions import require_permission, get_user_permissions
 
@@ -475,3 +475,152 @@ class UpdateUserProfileView(APIView):
             return Response({
                 'error': 'User not found'
             }, status=status.HTTP_404_NOT_FOUND)
+
+
+class StoreSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get store settings"""
+        settings = StoreSettings.get_settings()
+        return Response({
+            'store_name': settings.store_name,
+            'store_address': settings.store_address,
+            'store_phone': settings.store_phone,
+            'store_email': settings.store_email,
+            'currency': settings.currency,
+            'tax_rate': float(settings.tax_rate),
+            'receipt_footer': settings.receipt_footer,
+            'auto_open_cash_drawer': settings.auto_open_cash_drawer,
+            'print_receipts': settings.print_receipts,
+            'ask_for_customer_info': settings.ask_for_customer_info,
+            'low_stock_alerts': settings.low_stock_alerts,
+            'daily_sales_report': settings.daily_sales_report,
+            'email_notifications': settings.email_notifications,
+            'sms_notifications': settings.sms_notifications,
+        })
+    
+    @require_permission('manage_settings')
+    def post(self, request):
+        """Update store settings"""
+        settings = StoreSettings.get_settings()
+        
+        # Update fields if provided
+        if 'store_name' in request.data:
+            settings.store_name = request.data['store_name']
+        if 'store_address' in request.data:
+            settings.store_address = request.data['store_address']
+        if 'store_phone' in request.data:
+            settings.store_phone = request.data['store_phone']
+        if 'store_email' in request.data:
+            settings.store_email = request.data['store_email']
+        if 'currency' in request.data:
+            settings.currency = request.data['currency']
+        if 'tax_rate' in request.data:
+            settings.tax_rate = request.data['tax_rate']
+        if 'receipt_footer' in request.data:
+            settings.receipt_footer = request.data['receipt_footer']
+        if 'auto_open_cash_drawer' in request.data:
+            settings.auto_open_cash_drawer = request.data['auto_open_cash_drawer']
+        if 'print_receipts' in request.data:
+            settings.print_receipts = request.data['print_receipts']
+        if 'ask_for_customer_info' in request.data:
+            settings.ask_for_customer_info = request.data['ask_for_customer_info']
+        if 'low_stock_alerts' in request.data:
+            settings.low_stock_alerts = request.data['low_stock_alerts']
+        if 'daily_sales_report' in request.data:
+            settings.daily_sales_report = request.data['daily_sales_report']
+        if 'email_notifications' in request.data:
+            settings.email_notifications = request.data['email_notifications']
+        if 'sms_notifications' in request.data:
+            settings.sms_notifications = request.data['sms_notifications']
+        
+        settings.updated_by = request.user
+        settings.save()
+        
+        return Response({
+            'message': 'Settings updated successfully',
+            'settings': {
+                'store_name': settings.store_name,
+                'store_address': settings.store_address,
+                'store_phone': settings.store_phone,
+                'store_email': settings.store_email,
+                'currency': settings.currency,
+                'tax_rate': float(settings.tax_rate),
+            }
+        })
+
+
+class NotificationsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get user notifications"""
+        # Get unread notifications for the user or all if superuser
+        if request.user.is_superuser:
+            notifications = Notification.objects.all()[:20]
+        else:
+            notifications = Notification.objects.filter(
+                Q(user=request.user) | Q(user__isnull=True)
+            )[:20]
+        
+        return Response([{
+            'id': notif.id,
+            'type': notif.type,
+            'title': notif.title,
+            'message': notif.message,
+            'is_read': notif.is_read,
+            'created_at': notif.created_at.isoformat(),
+            'product_id': notif.related_product_id,
+            'product_name': notif.related_product.name if notif.related_product else None,
+        } for notif in notifications])
+    
+    def post(self, request):
+        """Mark notification as read"""
+        notification_id = request.data.get('notification_id')
+        
+        try:
+            notification = Notification.objects.get(id=notification_id)
+            notification.is_read = True
+            notification.save()
+            return Response({'message': 'Notification marked as read'})
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CheckLowStockView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Check for low stock products and create notifications"""
+        settings = StoreSettings.get_settings()
+        
+        if not settings.low_stock_alerts:
+            return Response({'message': 'Low stock alerts are disabled'})
+        
+        # Find products with low stock
+        low_stock_products = Product.objects.filter(stock__lte=F('reorder_level'))
+        
+        # Create notifications for low stock products
+        notifications_created = 0
+        for product in low_stock_products:
+            # Check if notification already exists for this product
+            existing = Notification.objects.filter(
+                type='low_stock',
+                related_product=product,
+                is_read=False
+            ).exists()
+            
+            if not existing:
+                Notification.objects.create(
+                    type='low_stock',
+                    title=f'Low Stock Alert: {product.name}',
+                    message=f'{product.name} is running low. Current stock: {product.stock}, Reorder level: {product.reorder_level}',
+                    related_product=product
+                )
+                notifications_created += 1
+        
+        return Response({
+            'message': f'Created {notifications_created} new low stock notifications',
+            'low_stock_count': low_stock_products.count()
+        })

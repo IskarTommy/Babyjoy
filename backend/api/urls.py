@@ -3,7 +3,8 @@ from .views import (
     CategoryListCreateView, ProductListCreateView, SaleListCreateView, 
     ProductImageUploadView, ProductRetrieveUpdateDestroyView, LoginView, LogoutView, 
     UserProfileView, AnalyticsView, UsersListView, UserPermissionsView, UpdateUserRoleView,
-    ToggleUserStatusView, ResetUserPasswordView, UpdateUserProfileView
+    ToggleUserStatusView, ResetUserPasswordView, UpdateUserProfileView,
+    StoreSettingsView, NotificationsView, CheckLowStockView
 )
 
 urlpatterns = [
@@ -20,6 +21,11 @@ urlpatterns = [
     path('users/toggle-status/', ToggleUserStatusView.as_view(), name='toggle-user-status'),
     path('users/reset-password/', ResetUserPasswordView.as_view(), name='reset-user-password'),
     path('users/update-profile/', UpdateUserProfileView.as_view(), name='update-user-profile'),
+    
+    # Settings and Notifications
+    path('settings/', StoreSettingsView.as_view(), name='settings'),
+    path('notifications/', NotificationsView.as_view(), name='notifications'),
+    path('notifications/check-low-stock/', CheckLowStockView.as_view(), name='check-low-stock'),
     
     # Existing endpoints
     path('categories/', CategoryListCreateView.as_view(), name='categories'),
